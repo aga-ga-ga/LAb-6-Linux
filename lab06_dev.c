@@ -11,8 +11,12 @@ static long timeout = 2000;
 void time_handler(unsigned long data)
 {
 	int ret;
-	
+	//KERN_INFO Информационные сообщения. 
+	//Многие драйверы выводят информацию об оборудовании, которое они нашли во время запуска на этом уровне.
 	printk(KERN_INFO "Lab06 time handler, timeout=%ld \n", timeout);
+	//задать время работы таймера, что делается с помощью вызова функции mod_timer
+	//время измеряется с помощью глобальной переменной с именем jiffies, 
+	//которая определяет количество временных тиков (тактов), прошедших после загрузки системы
 	ret = mod_timer(&timer, jiffies + msecs_to_jiffies(timeout));
 	if (ret) {
 		printk(KERN_ERR "Fail to mod timer\n");
@@ -31,14 +35,17 @@ static ssize_t write_handler(struct file *filp, const char *buff,
 	timeout = t;
 	return count;
 }
-
+//поле owner нужно для организации счетчика ссылок на модуль.
+//Счетчик ссылок нужен, чтобы модуль не выгрузили раньше времени, например, если файловая система была примонтирована,
+//то выгрузка модуля может привести к краху, счетчик ссылок не позволит выгрузить модуль, пока он используется,
+//т. е. пока мы не размонтируем файловую систему.
 static const struct file_operations fops = {
 	.owner = THIS_MODULE,
 	.write = write_handler
 };
 
 static struct miscdevice lab06_dev = {
-	MISC_DYNAMIC_MINOR,
+	MISC_DYNAMIC_MINOR, // автоматически выбираемое 
 	"lab06",
 	&fops
 };
@@ -46,11 +53,13 @@ static struct miscdevice lab06_dev = {
 static int __init lab_init(void)
 {
 	int ret;
+	//misc_register() регистрирует единичное устройство
 	ret = misc_register(&lab06_dev);
 	if (ret) {
 		printk(KERN_ERR "Unable to register \"Lab06\" device\n");
 	}
-
+	//инициализируем таймер
+	//функция time_handler вызывается внутри функции setup_timer
 	setup_timer(&timer, time_handler, 0);
 
 	ret = mod_timer(&timer, jiffies + msecs_to_jiffies(timeout));
@@ -73,6 +82,6 @@ static void __exit lab_exit(void)
 module_exit(lab_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Dmitry Dolenko, Wladimir Litvinov");
+MODULE_AUTHOR("Dmitry Dolenko, Wladimir Litvinov, Poltorackiy Alex");
 MODULE_DESCRIPTION("\"Lab06\" module");
 MODULE_VERSION("dev");
